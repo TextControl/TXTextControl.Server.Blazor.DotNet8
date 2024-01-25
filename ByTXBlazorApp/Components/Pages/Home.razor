@@ -1,0 +1,36 @@
+﻿@page "/"
+	@rendermode @(new InteractiveServerRenderMode(false))
+
+	@inject NavigationManager Navigator;
+
+<PageTitle>Home</PageTitle>
+
+<TextControl WebSocketURL=@Navigator.BaseUri
+			 ContainerID="txDocumentEditorContainer"
+			 @ref="_txtextcontrol">
+</TextControl>
+
+<button @onclick="InsertTable">Insert Table</button>
+
+<button @onclick="SaveDocument">
+	Save and Reload Document (using ServerTextControl)
+</button>
+
+@code
+{
+
+	private TextControl _txtextcontrol = default!;
+
+	// insert a table using the client-side API
+	private async Task InsertTable()
+	{
+		await _txtextcontrol.InsertTable();
+	}
+
+	// save the document and reload it using ServerTextControl
+	private async Task SaveDocument()
+	{
+		await _txtextcontrol.SaveDocument();
+	}
+
+	}

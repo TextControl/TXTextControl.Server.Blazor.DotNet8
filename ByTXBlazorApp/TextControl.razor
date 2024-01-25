@@ -1,0 +1,89 @@
+﻿@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@inject IJSRuntime JsRuntime
+@inject NavigationManager Navigator
+
+<script src="@WebSocketURL/api/TXWebSocket/GetResource?name=tx-document-editor.min.js"></script>
+
+<div id="txDocumentEditorContainer" style="width: @Width; height: @Height;"></div>
+
+@code
+{
+    protected override Task OnInitializedAsync()
+    {
+        return base.OnInitializedAsync();
+    }
+
+    [Parameter]
+    public string? WebSocketURL { get; set; }
+
+    [Parameter]
+    public string? ContainerID { get; set; }
+
+    [Parameter]
+    public string? Width { get; set; } = "800px";
+
+    [Parameter]
+    public string? Height { get; set; } = "600px";
+
+    private DotNetObjectReference<TextControl> DotNetReference => DotNetObjectReference.Create(this);
+    private IJSObjectReference? _txtextcontrol;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _txtextcontrol = await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./scripts/textcontrol.js");
+
+            var options = new Dictionary<string, object?>();
+
+            var webSocketURL = Navigator.BaseUri.Replace("https://", "wss://").Replace("http://", "ws://");
+
+            if (WebSocketURL != null)
+            {
+                options["websocketurl"] = $"{webSocketURL}api/TXWebSocket";
+                options["baseurl"] = $"{WebSocketURL}api/TXWebSocket";
+            }
+
+            if (ContainerID != null)
+            {
+                options["containerid"] = ContainerID;
+            }
+
+            await _txtextcontrol.InvokeVoidAsync("addEditorToElement", DotNetReference, options);
+        }
+    }
+
+    public async Task SaveDocument()
+    {
+        await _txtextcontrol.InvokeVoidAsync("saveDocument", DotNetReference);
+    }
+
+    [JSInvokable("ProcessDocument")]
+    public void ProcessDocument(string document)
+    {
+        byte[] bDocument;
+
+        // create a ServerTextControl instance to load the saved document
+        using (TXTextControl.ServerTextControl tx = new TXTextControl.ServerTextControl())
+        {
+            tx.Create();
+            tx.Load(Convert.FromBase64String(document), TXTextControl.BinaryStreamType.InternalUnicodeFormat);
+
+            // add additional text to the document
+            tx.Selection.Text = "This document has been modified by .NET\r\n";
+
+            // save back
+            tx.Save(out bDocument, TXTextControl.BinaryStreamType.InternalUnicodeFormat);
+        }
+
+        // invoke the JS function 'loadDocument' to load back to the modified document
+        _txtextcontrol.InvokeVoidAsync("loadDocument", Convert.ToBase64String(bDocument));
+    }
+
+    public async Task InsertTable()
+    {
+        await _txtextcontrol.InvokeVoidAsync("insertTable");
+    }
+
+}
